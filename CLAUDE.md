@@ -1,5 +1,12 @@
 # MournSpire — Unity 6 (URP) RPG
 
+## ⏳ Backlog (deferred — pick up next session)
+- **Mace stun** — brief enemy stun/slow on mace hits (the class is in but currently just heavy/slow; no stun yet). Would need an enemy stun state in `EnemyController`.
+- **Per-weapon combo flavor** — combo finishers are currently generic (×1.5, wider). Give each weapon a distinct finisher and/or weapon-gated combo skill nodes (needs `SkillNode.weaponClass` gating + `PlayerStats` knowing the equipped class — it already stores `weaponClass`).
+- **Weapon tiers** — dagger/spear/mace/greatsword are one tier each. Add copper/iron (and later silver/mythril) versions like the swords, with scaled ATK + recipes.
+- **Respec at a Shrine** — respec currently works anywhere from the skill panel; gate it behind a placed "Shrine" station for the intended design.
+- **Zone-restore ordering** — on re-entry, resources spawn before saved structures replay, so a resource can rarely share a restored build's tile. Restore structures before `SpawnRandomResources` to fully prevent overlap.
+
 ## ███ NEXT-PHASE PLAN (design locked — start here next session) ███
 
 **Vision for the two new zones:**
