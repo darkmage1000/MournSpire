@@ -111,13 +111,23 @@ Edit the `rawMap` field on the `MapData` ScriptableObject assets in `Assets/Scri
 | E | Interact / Gather / Use station / Enter dungeon |
 | F | Use health potion (6s cooldown) |
 | T | Use stamina tonic (6s cooldown) |
-| B | Open/close backpack |
+| B | Open/close backpack (items + equipment slots + stats) |
+| K | Open/close skill tree (spend points / respec for gold) |
+| Shift | Dodge Roll (after unlocking it in the Utility tree) |
 | C | Hand-craft menu (no station needed) |
 | G | Plant a seed on the tile you're standing on (farming) |
 | P | Enter build/place mode (cycles inventory) |
 | LClick | Place block (in build mode) |
 | Esc | Cancel build / close panel / pause |
 | R | Restart after death |
+
+## Skill Tree System (v1)
+- **Three trees** (`SkillTree` enum: Attack / Defense / Utility) defined as pure data in `Assets/Scripts/Skills/SkillData.cs` — node id, tree, branch/row, maxRank, `reqPoints` (points already spent in that tree to unlock), optional `reqNode` prerequisite, a `SkillEffect`, and per-rank magnitude. Add nodes here only.
+- **Points:** `PlayerStats.GainXp` now grants **+1 skill point per level (+1 extra every 5th level)** and NO auto stat-ups. Points/ranks live on the **DontDestroyOnLoad `PlayerStats`** (`skillPoints`, `skillRanks` dict) so they persist across scenes.
+- **Bonuses:** `PlayerStats.RecomputeSkills()` re-aggregates all ranked nodes into `skillBonus*` fields + multipliers (`attackStaminaMult`, `moveCooldownMult`, `critChance`, `goldMult`, `xpMult`, `canDodge`, …). Effective getters are now `base + equipment + skill` (`Atk`, `Def`, `MaxHpEff`, `MaxStaminaEff`, `BlockDivisorEff`). `GameManager.RecomputeEquipment()` + `RecomputeSkills()` are both re-run on every `InitScene`.
+- **Combat hooks:** `GameManager.ComputePlayerDamage()` applies Adrenaline (low-HP ATK%), Executioner (vs low-HP enemy), and Crit (double dmg). `OnEnemyDied` scales XP/gold by the multipliers. `PlayerController` reads the stamina/move multipliers and i-frames.
+- **Dodge Roll** (Utility unlock): **Left/Right Shift** dashes up to 2 tiles in the last-moved direction with ~0.4s invulnerability (`PlayerController.HandleDodge`, gated by `stats.canDodge`).
+- **UI:** Press **K** to open `SkillPanel`. Node buttons are built at runtime by `HUDController.BuildSkillButtons()` from `SkillData.All` into three column containers (`skillAttackCol/DefenseCol/UtilityCol`) — colour-coded maxed/buyable/locked. **Respec** button refunds all points for `40 × pointsSpent` gold (`PlayerStats.TryRespec`). *(Currently respec works anywhere via the panel; gating it behind a physical Shrine station is a TODO.)*
 
 ## Crafting & Building System
 - **`'S'` = PlayerStart, `'P'` = Teleporter** — these are DIFFERENT map characters. Never confuse them.
