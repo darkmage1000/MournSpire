@@ -129,6 +129,13 @@ Edit the `rawMap` field on the `MapData` ScriptableObject assets in `Assets/Scri
 - **Dodge Roll** (Utility unlock): **Left/Right Shift** dashes up to 2 tiles in the last-moved direction with ~0.4s invulnerability (`PlayerController.HandleDodge`, gated by `stats.canDodge`).
 - **UI:** Press **K** to open `SkillPanel`. Node buttons are built at runtime by `HUDController.BuildSkillButtons()` from `SkillData.All` into three column containers (`skillAttackCol/DefenseCol/UtilityCol`) — colour-coded maxed/buyable/locked. **Respec** button refunds all points for `40 × pointsSpent` gold (`PlayerStats.TryRespec`). *(Currently respec works anywhere via the panel; gating it behind a physical Shrine station is a TODO.)*
 
+## Weapons, Swings & Combos
+- **Weapon classes** (in `GearData`, `weaponClass`): sword (copper/iron), **dagger**, **spear**, **mace**, **greatsword** (one tier each, crafted at the Forge). All occupy the Weapon slot / Sword hotbar.
+- **Distinct hit patterns** (facing-relative, `GameManager.AttackTiles`): dagger/mace = single front tile; sword = front + both sides (cleave); spear = front + 2 tiles ahead (reach); greatsword = 3-tile fan. Per-weapon **attack speed** via `WeaponCooldown` (dagger fast → greatsword slow).
+- **Per-weapon swings** (`VoxelKnightAnimator.SwingByClass`): dagger jab, mace heavy slam (wind-up), greatsword horizontal sweep (Y), spear forward thrust (lunge), sword/tools overhead chop. `VoxelKnight.CurrentWeaponClass` drives both mesh (`BuildWeapon`) and animation.
+- **Held-weapon setup** flows through `GameManager.ApplyHeldWeapon(tool)` → sets mesh+tier colour (`EquipTool(tool, metal, weaponClass)`), `player.attackCooldown`, and `playerStats.weaponClass`. Called on equip, tool-switch, and scene init.
+- **Timed 3-hit combo** (`GameManager.OnAttackSwing`): swings within `comboWindow` (+`comboWindowBonus`) chain; the 3rd is an empowered **finisher** (×1.5 +`comboFinisherBonus`, wider if `comboWideFinisher`). Attack-tree skills: **Combo Training** (finisher dmg), **Flow** (window), **Rampage** (wide finisher).
+
 ## Gathering, Tools & Alchemy
 - **Multi-hit nodes:** `ResourceNode` now has hit-points (`DefaultHits` per type — wood 3, stone 4, ores 4-7, plants 1). `Interact(inv, out outcome, toolPower, yieldBonus, doubleChance)` chips it; harvest completes at 0. `GameManager.ToolPower(ToolType)` = best owned tool tier (basic 1 / copper 2 / iron 3) → better tools = fewer swings.
 - **Gather skills** (Utility tree): Forager (`GatherYieldFlat`) and Prospector (`GatherDoubleChance`) feed `PlayerStats.gatherYieldBonus` / `gatherDoubleChance` into the harvest.
