@@ -129,10 +129,16 @@ Edit the `rawMap` field on the `MapData` ScriptableObject assets in `Assets/Scri
 - **Dodge Roll** (Utility unlock): **Left/Right Shift** dashes up to 2 tiles in the last-moved direction with ~0.4s invulnerability (`PlayerController.HandleDodge`, gated by `stats.canDodge`).
 - **UI:** Press **K** to open `SkillPanel`. Node buttons are built at runtime by `HUDController.BuildSkillButtons()` from `SkillData.All` into three column containers (`skillAttackCol/DefenseCol/UtilityCol`) — colour-coded maxed/buyable/locked. **Respec** button refunds all points for `40 × pointsSpent` gold (`PlayerStats.TryRespec`). *(Currently respec works anywhere via the panel; gating it behind a physical Shrine station is a TODO.)*
 
+## Gathering, Tools & Alchemy
+- **Multi-hit nodes:** `ResourceNode` now has hit-points (`DefaultHits` per type — wood 3, stone 4, ores 4-7, plants 1). `Interact(inv, out outcome, toolPower, yieldBonus, doubleChance)` chips it; harvest completes at 0. `GameManager.ToolPower(ToolType)` = best owned tool tier (basic 1 / copper 2 / iron 3) → better tools = fewer swings.
+- **Gather skills** (Utility tree): Forager (`GatherYieldFlat`) and Prospector (`GatherDoubleChance`) feed `PlayerStats.gatherYieldBonus` / `gatherDoubleChance` into the harvest.
+- **Glass & potions:** mining **stone** has a 40% chance to also drop **sand** (`ResourceNode.secondaryType`). Chain: sand → **glass** (Forge) → **bottle** + 2 **crop** → **potion**/**tonic** at the new **Alchemy Table** station (`craftingStationID = "alchemy"`, hand-crafted from 4 glass + 6 wood). This gives crops a use.
+- **Tier visuals:** `VoxelKnight.EquipTool(tool, metalColor)` colours the held blade/head by tier; `GameManager.HeldMetal()` picks basic/copper/iron from the equipped weapon (sword) or best owned tool. `RefreshHeldVisual()` updates it on equip.
+
 ## Crafting & Building System
 - **`'S'` = PlayerStart, `'P'` = Teleporter** — these are DIFFERENT map characters. Never confuse them.
 - **Player spawns at `'S'`** — must be placed near the center of the map or the camera will look off the edge.
-- **Hand-craft recipes** use `requiredStation = null` (workbench=8 wood, forge=6 stone+4 wood, stonecutter=8 stone). Press **C** to open.
+- **Hand-craft** (press **C**, `requiredStation = null`) only makes the **Workbench** (8 wood) to bootstrap. All other stations (Forge 6 stone+4 wood, Stonecutter 8 stone, Alchemy Table 4 glass+6 wood) are crafted **at the Workbench**.
 - **`StructureCatalogue` calls `CreatePrimitive` in its constructor** — must be initialized in `Awake()`, never as a field initializer on a MonoBehaviour (causes Unity serialization crash).
 - **`BuildingPlacer.inventory` and `BuildingPlacer.mainCamera`** must be wired in `MournSpireSceneBuilder.BuildSharedObjects()`.
 - After crafting, `InventoryController` holds items by string ID (e.g. `"workbench"`). Press **P** to enter build/place mode.
