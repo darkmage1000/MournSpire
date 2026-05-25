@@ -11,28 +11,47 @@
 - **Shrine of Reflection** — built at the Workbench (10 stone + 3 iron_ingot); **E** opens the skill tree and **respec only works while standing by a shrine** (`_nearShrine`).
 - **Per-weapon combo finishers** (`OnAttackSwing`): dagger = **Backstab** (guaranteed crit), mace = **Crushing Blow** (+dmg, always stuns), spear = **Impale** (`LineTiles` reach 3), greatsword/sword = **Cleave** (`FanFinisher` full frontal arc). `ComputePlayerDamage(..., forceCrit)` supports the dagger crit.
 
-## ███ NEXT-PHASE PLAN (design locked — start here next session) ███
+## ███ LONG-TERM ROADMAP (design locked — built incrementally) ███
 
-**Vision for the two new zones:**
-- **Deep dungeon = FROZEN CRYPT** — ice caverns + undead. New foes: **Frost Wraith**, **Bone Knight**. silver/mythril = "cold metals". Guarded by a boss. (This is the existing deep area past the gate — reskin with ice materials, replace placeholder orcs/skeletons.)
-- **Island = CURSED JUNGLE RUINS** — overgrown temple. New foes: **Cultist**, **Plant-monster (Vinemaw)**. gold = ancient treasure. The ruin landmark becomes a temple with a boss. (Replace placeholder orcs/skeletons.)
-- **Ores feed a real GEAR SYSTEM** — tiers **copper < iron < silver < mythril** across **weapons, armor, shields**, plus upgraded **tools**. gold = treasure/late-game.
-- **Each zone = a BOSS guarding loot** (rare gear / keys).
+The macro shape of the game. Build it island-by-island; each island ships
+*complete* before the next. Two design axes run through everything:
 
-**Equipment system (v1) — decisions:**
-- **Dedicated equip slots + panel**: player has Weapon / Armor / Shield slots; equip from backpack or an equipment panel; stats apply live.
-- **Stats**: Weapon → ATK; Armor → DEF + **bonus max HP**; Shield → improves block (Q); some gear affects **stamina / max stamina**. (PlayerStats already has atk/def/maxHp/maxStamina.)
-- **Recipe gating**: copper/iron gear at the **Forge**; **silver/mythril need a NEW station — an "Anvil"** (craftable later, gates top-tier gear). Smelt silver_ore/mythril_ore → ingots first (mirror copper/iron ingot recipes).
-- **MULTIPLE WEAPON TYPES (v1):** distinct weapon classes — e.g. **sword** (balanced), **dagger** (fast/low dmg/low stamina), **mace** (slow/high dmg), **spear** (reach/thrust), **greatsword** (slow/wide/high dmg). Each class × each tier (copper→mythril). Class defines a stat profile: damage, attack-cooldown/speed, stamina cost, reach/arc.
-- **SWING ANIMATIONS per weapon type (v1):** extend `VoxelKnightAnimator` (currently a single slash via `TriggerAttack`, params `slashAngle`/`slashDuration`) into per-class swings — e.g. side slash (sword), quick jab (dagger), overhead smash (mace/greatsword), forward thrust (spear). The equipped weapon's class selects its animation + drives the attack arc/reach used by `PlayerController` melee hit detection.
+- **POWER axis** (combat): ore → weapons/armor/shields. Tiers: copper → iron → silver → mythril → [temple relic tier].
+- **SURVIVAL axis** (exploration): each island has an **environmental HAZARD** countered by that island's **animal hides** (hazard armor) AND its **crop** (hazard consumable). Frostbite is the first instance.
 
-**Build order (dependency-first):**
-1. **Equipment system (FOUNDATION — do first).** Equip slots + panel UI; equipping modifies PlayerStats (atk/def/+maxHP/+stamina); Forge recipes (copper/iron) + Anvil recipes (silver/mythril) for weapon/armor/shield + better tools. Hooks: `InventorySlotUI.OnClick` (route equippable items to equip), `HUDController.ItemTooltip` (fill weapon/armor/shield stat lines — stub exists), new `EquipmentController`. Add "anvil" to `StructureCatalogue` (placeable) + `CraftingManager` station id. Existing `copper_sword`/`iron_sword` recipes are a starting point.
-2. **New enemy types.** Extend `EnemyType` enum (+FrostWraith, BoneKnight, Cultist, Vinemaw) + `VoxelEnemy` models + `EnemyController`/`Boss` AI (reuse melee/ranged/shield behaviors). Build prefabs via `MournSpireSetup`/scene builder `BuildEnemyPrefabs`.
-3. **Zone bosses + loot.** Frost Warden (crypt) + Temple Guardian (island). Add gear to `LootSystem.BossPool` (low weight) / per-boss tables. Bosses use BossController pattern; persist-on-death like the Lich if they gate progression.
-4. **Theme polish.** Ice/crypt materials for deep area; jungle/temple materials + maybe traps for island.
+### Progression ladder
+1. **Overworld** — copper, leather (hides), crops. Safe starter zone.
+2. **Dungeon** — coal everywhere; **iron gated to the deep room past the seal** (post-Lich).
+3. **Island 2 (FROST)** — new animals, a new crop, its own hazard (frostbite) + warm armor; contains a **dungeon → silver → mini-boss → deeper room → mithril**.
+4. **Island 3** — *same template, new everything*: new hazard + enemy gimmick + boss mechanic, new animals/crop, dungeon with the next ore tier.
+5. **Island 4 = TEMPLE** — a multi-floor temple + **basement big-boss**. The true **stat check** and the **identity-defining reward** (see Ascension below). A deliberate power spike that breaks the ore pattern.
 
-**Current placeholders to replace:** deep dungeon + island both spawn orcs/skeletons as stand-ins; silver/mythril/gold ore are inert materials with no recipes yet.
+### Per-island TEMPLATE (so islands 2-4 are content, not new code)
+- **Animals → tiered hides** (leather → fur → …) feed **hazard armor**.
+- **Crop → one local-hazard consumable + one unique buff** (keeps the Alchemy Table relevant all game).
+- **Hazard** = a reusable system (generalize frostbite): hazard type + buildup + the resist stat that counters it.
+- **Dungeon** holds that island's ore tier; the **better ore sits in a deeper room behind a mini-boss/guardian** (mirror Lich → iron room).
+- Reuse mini-boss mechanics; the island's **big boss combines/escalates** them. Every boss needs a distinct, theme-tied, telegraphed signature move (Lich = purple bolts + red-AoE shockwave).
+
+### Teleporter network (convenience reward, combat-gated)
+- Each **mini-boss drops a Teleport Rune** that BOTH **activates that island's fixed teleporter node** AND is the **craft material for a placeable base teleporter**. (Can't fast-travel without earning it.)
+- **Two-way destination picker:** interact any teleporter → list of all active nodes + your **named base pads** → choose where to go. Generalizes the existing overworld↔dungeon teleporter into one network system.
+- A base pad can only **link into an island whose node is active** (no skipping the gate). **Arriving ≠ safe** — you still need that island's hazard protection once there.
+
+### Temple capstone → ASCENSION (PoE-style)
+- The temple **relic frees a sealed NPC** (an ancient master). Talking to them **unlocks the Ascension tree** — a *separate, elevated* panel (reuse the skill-panel UI), NOT more base-tree nodes.
+- **Ascension = keystones, not filler:** few points, each a *rule-changer*, with PoE-style trade-offs where fun. Base trees = breadth; ascension = spike + identity.
+- **One ascension path per character, PERMANENT** (decided: "once you ascend, that's it"). Because it's irreversible, **each path must be playtested hard for fun/balance.**
+- **Weapon paths** (this is the deferred per-weapon flavor's true home): Sword/Bladedancer, Dagger/Assassin, Mace/Breaker, Spear/Lancer, Greatsword/Warlord — keystones that reinvent each weapon's combo/finisher. Plus **1-2 non-weapon paths** (Sentinel tank, Pathfinder utility).
+- **Separate currency = "Ascendant Marks."** Temple grants the first; **more come from postgame** (mini-boss rematches / hidden trials / each island's big boss) so the tree *grows over time* — the home for "skills we create later."
+
+### Frameworks to build (do these first; then islands plug in)
+1. **Zone Hazard system** — generalize frostbite (`GameManager.TickFrostbite` + `PlayerStats.frostbite/coldRes/frostMoveMult`) into a hazard type + buildup + resist-stat, so new islands declare a hazard instead of bespoke code.
+2. **Teleport Network system** — generalize the teleporter into named destination nodes + base pads + a picker UI; gate links on node-active.
+3. **AscensionData catalog + 4th panel** — mirrors `SkillData` + the skill panel; gated by relic + NPC; permanent path choice.
+
+### NEXT SESSION
+- **Build the Island content + TEST THE BOAT.** (Boat test was blocked earlier because the herald spawned on the teleporter — now fixed via `NearestOpenTile`.) Verify: craft boat → dock → sail to Island → frostbite + warm-armor loop works → wolves/yak hunt → return. This is the first real instance of the per-island template.
 
 ---
 
