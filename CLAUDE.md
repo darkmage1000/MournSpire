@@ -153,6 +153,15 @@ Edit the `rawMap` field on the `MapData` ScriptableObject assets in `Assets/Scri
 - **Held-weapon setup** flows through `GameManager.ApplyHeldWeapon(tool)` → sets mesh+tier colour (`EquipTool(tool, metal, weaponClass)`), `player.attackCooldown`, and `playerStats.weaponClass`. Called on equip, tool-switch, and scene init.
 - **Timed 3-hit combo** (`GameManager.OnAttackSwing`): swings within `comboWindow` (+`comboWindowBonus`) chain; the 3rd is an empowered **finisher** (×1.5 +`comboFinisherBonus`, wider if `comboWideFinisher`). Attack-tree skills: **Combo Training** (finisher dmg), **Flow** (window), **Rampage** (wide finisher).
 
+## Lighting, Coal & Misc systems
+- **Coal** (`TileType.Coal`, non-walkable) spawns across dungeons (`coalCount`); mined with a pickaxe. Fuels **torches** (Workbench: 1 coal + 2 wood → 2 torches).
+- **Torch** — placeable light source, **non-blocking** (`StructureCatalogue.Register(..., blocks:false)` → `ActiveKindOf` treats non-blocking props as Floor kind so they stay walkable). Campfire + torch both emit a warm point light (`AddFireLight`).
+- **Trash** — toggle button in the backpack (`HUDController._trashMode` / `OnTrashItem`); while ON, clicking an item deletes one (`GameManager.TrashItem`).
+- **Ore gating** — iron only spawns in the deep dungeon past the seal (`minZ=deepZoneMinZ`, post-Lich); silver/mythril removed from the dungeon (reserved for the frozen island). Mining silver/mythril needs an iron pickaxe+ (`ToolPower >= 3`).
+- **Rare gear** — forge smelts silver/mythril ingots and crafts silver/mythril sword/armor/shield.
+- **Build mode w/o items** — `EnterEditModeNoItem()` lets you enter Move/Remove with an empty backpack. Build palette counts refresh on each placement (`OnStructurePlaced`).
+- **8-minute days** (`DayNightCycle.dayLengthSeconds = 480`). Respawn fixed (R-key now handled before the dead-player early-return). Wooden door is craftable. Herald no longer spawns on the teleporter (`NearestOpenTile`) and warns about warm armor.
+
 ## Gathering, Tools & Alchemy
 - **Multi-hit nodes:** `ResourceNode` now has hit-points (`DefaultHits` per type — wood 3, stone 4, ores 4-7, plants 1). `Interact(inv, out outcome, toolPower, yieldBonus, doubleChance)` chips it; harvest completes at 0. `GameManager.ToolPower(ToolType)` = best owned tool tier (basic 1 / copper 2 / iron 3) → better tools = fewer swings.
 - **Gather skills** (Utility tree): Forager (`GatherYieldFlat`) and Prospector (`GatherDoubleChance`) feed `PlayerStats.gatherYieldBonus` / `gatherDoubleChance` into the harvest.
