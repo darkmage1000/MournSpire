@@ -136,6 +136,11 @@ Edit the `rawMap` field on the `MapData` ScriptableObject assets in `Assets/Scri
 - **Dodge Roll** (Utility unlock): **Left/Right Shift** dashes up to 2 tiles in the last-moved direction with ~0.4s invulnerability (`PlayerController.HandleDodge`, gated by `stats.canDodge`).
 - **UI:** Press **K** to open `SkillPanel`. Node buttons are built at runtime by `HUDController.BuildSkillButtons()` from `SkillData.All` into three column containers (`skillAttackCol/DefenseCol/UtilityCol`) — colour-coded maxed/buyable/locked. **Respec** button refunds all points for `40 × pointsSpent` gold (`PlayerStats.TryRespec`). *(Currently respec works anywhere via the panel; gating it behind a physical Shrine station is a TODO.)*
 
+## Animals & Frostbite
+- **Wildlife** (`AnimalController`, spawned by `WorldBuilder.SpawnAnimals` per zone, wired in `GameManager.WireAnimals`): **Deer/Rabbit** (overworld) flee; **Wolf** (island) chases + bites; **Yak** (island) is neutral but retaliates when struck. Tile-based greedy movement, share the `_occupied` grid. Melee hits them via `FindAnimalAt` in `OnAttackSwing`; death drops **hide** + **meat** (`OnAnimalDied`).
+- **Frostbite** (`GameManager.TickFrostbite`, Island only): buildup 0–100 rises with time, scaled by `(1 - coldRes)`; thaws in warm zones / when fully cold-proof. At max → periodic true damage (`PlayerStats.TakeEnvironmentDamage`, ignores DEF) + movement slow (`frostMoveMult`). HUD shows a frostbite meter (`HUDController.SetFrostbite`).
+- **Warm armor** (`GearInfo.coldRes`): the **Tannery** station (built at the Workbench from hides) converts base armor + hides → `warm_copper_armor` / `warm_iron_armor` (coldRes = 1, fully negates frostbite). `RecomputeEquipment` sums equipped `coldRes` into `playerStats.coldRes`.
+
 ## Weapons, Swings & Combos
 - **Weapon classes** (in `GearData`, `weaponClass`): sword (copper/iron), **dagger**, **spear**, **mace**, **greatsword** (one tier each, crafted at the Forge). All occupy the Weapon slot / Sword hotbar.
 - **Distinct hit patterns** (facing-relative, `GameManager.AttackTiles`): dagger/mace = single front tile; sword = front + both sides (cleave); spear = front + 2 tiles ahead (reach); greatsword = 3-tile fan. Per-weapon **attack speed** via `WeaponCooldown` (dagger fast → greatsword slow).
