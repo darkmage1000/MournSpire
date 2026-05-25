@@ -1,11 +1,15 @@
 # MournSpire — Unity 6 (URP) RPG
 
 ## ⏳ Backlog (deferred — pick up next session)
-- **Mace stun** — brief enemy stun/slow on mace hits (the class is in but currently just heavy/slow; no stun yet). Would need an enemy stun state in `EnemyController`.
-- **Per-weapon combo flavor** — combo finishers are currently generic (×1.5, wider). Give each weapon a distinct finisher and/or weapon-gated combo skill nodes (needs `SkillNode.weaponClass` gating + `PlayerStats` knowing the equipped class — it already stores `weaponClass`).
-- **Weapon tiers** — dagger/spear/mace/greatsword are one tier each. Add copper/iron (and later silver/mythril) versions like the swords, with scaled ATK + recipes.
-- **Respec at a Shrine** — respec currently works anywhere from the skill panel; gate it behind a placed "Shrine" station for the intended design.
+- **Higher weapon tiers** — copper/iron exist for all classes now; add silver/mythril (needs an Anvil station per the NEXT-PHASE plan).
 - **Zone-restore ordering** — on re-entry, resources spawn before saved structures replay, so a resource can rarely share a restored build's tile. Restore structures before `SpawnRandomResources` to fully prevent overlap.
+- **Island reskin** — make the Island actually look frozen (ice materials) to match the frostbite mechanic.
+
+## Combat extras (shipped)
+- **Mace stun** — mace hits chance-stun enemies (`EnemyController.Stun`, always on a combo finisher; ~50% otherwise).
+- **Weapon tiers** — dagger/spear/mace/greatsword each have copper + iron versions (shape = class, colour = tier).
+- **Shrine of Reflection** — built at the Workbench (10 stone + 3 iron_ingot); **E** opens the skill tree and **respec only works while standing by a shrine** (`_nearShrine`).
+- **Per-weapon combo finishers** (`OnAttackSwing`): dagger = **Backstab** (guaranteed crit), mace = **Crushing Blow** (+dmg, always stuns), spear = **Impale** (`LineTiles` reach 3), greatsword/sword = **Cleave** (`FanFinisher` full frontal arc). `ComputePlayerDamage(..., forceCrit)` supports the dagger crit.
 
 ## ███ NEXT-PHASE PLAN (design locked — start here next session) ███
 
