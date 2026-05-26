@@ -1,5 +1,11 @@
 # MournSpire — Unity 6 (URP) RPG
 
+## Island 2 — Frost (built)
+- **Island scene** reskinned frosty (snow floor / ice walls / cold fog), ore tier = **silver (common) + mythril (rare)** (need iron pickaxe+), **wolves spawn in packs of 1-3** (`wolfCount` = pack count). Crop = **Frostbloom** → Stamina Tonics.
+- **Frozen Depths dungeon** (new scene `IslandDungeon`, `Zone.IslandDungeon`): branching layout — start room (portal back) → three cross-linked corridors → boss chamber. Entered via the **portal in the island's central ruin** (`'P'`). Silver along paths, mythril near the boss, coal for torches. Boss reuses BossController but is **decoupled from the Lich** (its death doesn't set `_lichDefeated`/open the overworld gate; it's re-fightable). Teleporter routing is now zone-aware (`TeleporterTarget`).
+- **Crops are biome-named:** **Sunleaf** (plains → Health Potions) and **Frostbloom** (frost → Stamina Tonics); per-zone wild-plant seed (`WorldBuilder.plantSeedId`), `Crop.yieldItem`/`seedItem`.
+- **Still TODO for the island:** frost mini-boss + teleporter-rune gate on the deeper mythril (per roadmap); reskin dungeon enemies/boss from the Lich placeholder; a frost-specific consumable from Frostbloom.
+
 ## ⏳ Backlog (deferred — pick up next session)
 - **Higher weapon tiers** — copper/iron exist for all classes now; add silver/mythril (needs an Anvil station per the NEXT-PHASE plan).
 - **Zone-restore ordering** — on re-entry, resources spawn before saved structures replay, so a resource can rarely share a restored build's tile. Restore structures before `SpawnRandomResources` to fully prevent overlap.
