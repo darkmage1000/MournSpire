@@ -4,7 +4,9 @@
 - **Island scene** reskinned frosty (snow floor / ice walls / cold fog), ore tier = **silver (common) + mythril (rare)** (need iron pickaxe+), **wolves spawn in packs of 1-3** (`wolfCount` = pack count). Crop = **Frostbloom** → Stamina Tonics.
 - **Frozen Depths dungeon** (new scene `IslandDungeon`, `Zone.IslandDungeon`): branching layout — start room (portal back) → three cross-linked corridors → boss chamber. Entered via the **portal in the island's central ruin** (`'P'`). Silver along paths, mythril near the boss, coal for torches. Boss reuses BossController but is **decoupled from the Lich** (its death doesn't set `_lichDefeated`/open the overworld gate; it's re-fightable). Teleporter routing is now zone-aware (`TeleporterTarget`).
 - **Crops are biome-named:** **Sunleaf** (plains → Health Potions) and **Frostbloom** (frost → Stamina Tonics); per-zone wild-plant seed (`WorldBuilder.plantSeedId`), `Crop.yieldItem`/`seedItem`.
-- **Still TODO for the island:** frost mini-boss + teleporter-rune gate on the deeper mythril (per roadmap); reskin dungeon enemies/boss from the Lich placeholder; a frost-specific consumable from Frostbloom.
+- **Frost Troll mini-boss (built):** `FrostTrollController` (mirrors BossController). Club-slam emits an expanding icy ripple (`ShockwaveTelegraph.SpawnRipple`), telegraphed AoE slam (red→icy-blue, `Spawn` with `IcyColor`), phase-2 (≤50% HP) faster attacks + jump-slam-to-adjacent-tile. Map char `'Y'` → `TileType.FrostTroll`; placed in the Frozen Depths boss room. Enrage now writes runtime-only stat overrides (`EnemyStats.runtimeAtkOverride/runtimeMoveSpeedOverride`) so shared def assets aren't mutated.
+- **Mythril vault (built):** Troll death opens a gated hallway (reuses `'X'` Gate + `WorldBuilder.OpenGate`, gated on `_trollDefeated` in `Zone.IslandDungeon`) to a 2× reward room. **Mythril is now vault-only** — `mythrilCount = 0` in every zone; the vault places explicit `'H'` (`MythrilOre`) tiles spawned by `WorldBuilder.SpawnExplicitOre`.
+- **Still TODO for the island:** reskin dungeon enemies/boss from the Lich placeholder; a frost-specific consumable from Frostbloom.
 
 ## ⏳ Backlog (deferred — pick up next session)
 - **Higher weapon tiers** — copper/iron exist for all classes now; add silver/mythril (needs an Anvil station per the NEXT-PHASE plan).
@@ -39,10 +41,12 @@ The macro shape of the game. Build it island-by-island; each island ships
 - **Dungeon** holds that island's ore tier; the **better ore sits in a deeper room behind a mini-boss/guardian** (mirror Lich → iron room).
 - Reuse mini-boss mechanics; the island's **big boss combines/escalates** them. Every boss needs a distinct, theme-tied, telegraphed signature move (Lich = purple bolts + red-AoE shockwave).
 
-### Teleporter network (convenience reward, combat-gated)
-- Each **mini-boss drops a Teleport Rune** that BOTH **activates that island's fixed teleporter node** AND is the **craft material for a placeable base teleporter**. (Can't fast-travel without earning it.)
-- **Two-way destination picker:** interact any teleporter → list of all active nodes + your **named base pads** → choose where to go. Generalizes the existing overworld↔dungeon teleporter into one network system.
-- A base pad can only **link into an island whose node is active** (no skipping the gate). **Arriving ≠ safe** — you still need that island's hazard protection once there.
+### Teleporter network (BUILT — convenience reward, combat-gated)
+- **Teleport Rune** (`frost_teleport_rune`): guaranteed Frost Troll drop. Troll death sets `_frostNodeActive` (persistent), which **permanently unlocks the Island + Frozen Depths nodes** — so spending the rune to craft a pad never re-locks them. (Gating answer chosen: **rune-in-inventory / earned**, not visited-once.)
+- **Picker UI** (`HUDController.ShowTeleportPicker`, built fully at runtime — no scene-wired refs): interact any teleporter OR a placed Base Teleporter → modal list of unlocked fixed nodes (Overworld + Old Dungeon always; Frostreach Isle + Frozen Depths gated) + every named base pad. Pauses via `Time.timeScale = 0`; Cancel button closes (Esc does **not** yet).
+- **Base Teleporter** (`base_teleporter`): non-blocking placeable (stand on it, `[E]`). Crafted at Workbench from `1 rune + 3 mythril_ore + 4 iron_ingot`. On placement it registers as a named node (`"<Zone> Pad N"`) via `BuildingPlacer.OnStructurePlacedDetail` → `GameManager.RegisterBasePad`; removal unregisters. Survives scene loads (build save/restore + in-memory `_basePads`).
+- **Arrival:** `GameManager._arrivalTile` + `PlayerController.Teleport(tile)` — base-pad jumps land on the pad; fixed-node jumps land at the scene's PlayerStart.
+- **Follow-ups (not done):** named-pad **rename UI** (currently auto-named); Esc-to-close the picker; fixed-node arrival landing on the destination's teleporter tile instead of PlayerStart; **live playtest** of the whole loop (kill troll → rune → craft pad → jump). Editor kit pre-seeds rune+mats+`_frostNodeActive` for testing.
 
 ### Temple capstone → ASCENSION (PoE-style)
 - The temple **relic frees a sealed NPC** (an ancient master). Talking to them **unlocks the Ascension tree** — a *separate, elevated* panel (reuse the skill-panel UI), NOT more base-tree nodes.
@@ -53,7 +57,7 @@ The macro shape of the game. Build it island-by-island; each island ships
 
 ### Frameworks to build (do these first; then islands plug in)
 1. **Zone Hazard system** — generalize frostbite (`GameManager.TickFrostbite` + `PlayerStats.frostbite/coldRes/frostMoveMult`) into a hazard type + buildup + resist-stat, so new islands declare a hazard instead of bespoke code.
-2. **Teleport Network system** — generalize the teleporter into named destination nodes + base pads + a picker UI; gate links on node-active.
+2. ~~**Teleport Network system**~~ — **BUILT** (see "Teleporter network" above): named nodes + base pads + picker UI; links gated on `_frostNodeActive`.
 3. **AscensionData catalog + 4th panel** — mirrors `SkillData` + the skill panel; gated by relic + NPC; permanent path choice.
 
 ### NEXT SESSION
