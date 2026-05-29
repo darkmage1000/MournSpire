@@ -19,6 +19,21 @@
 - **Shrine of Reflection** — built at the Workbench (10 stone + 3 iron_ingot); **E** opens the skill tree and **respec only works while standing by a shrine** (`_nearShrine`).
 - **Per-weapon combo finishers** (`OnAttackSwing`): dagger = **Backstab** (guaranteed crit), mace = **Crushing Blow** (+dmg, always stuns), spear = **Impale** (`LineTiles` reach 3), greatsword/sword = **Cleave** (`FanFinisher` full frontal arc). `ComputePlayerDamage(..., forceCrit)` supports the dagger crit.
 
+## Island 4 — TEMPLE + Hollow Sovereign (BUILT)
+- **Two scenes** — `Temple` (`Zone.Temple`) and `TempleBasement` (`Zone.TempleBasement`, the Depths). `MournSpireSceneBuilder` `Build Temple Scene` / `Build Temple Basement Scene`; maps `BuildTempleRaw` (3×3 hall grid) / `BuildTempleBasementRaw` (descent → arena → sealed sanctum gate).
+- **5 new units** (`EnemyType` + `TileType` + `MapData` chars `1`-`5`): **Temple Sentinel** (`1`, shielded tank, `ActSkeleton`), **Temple Initiate** (`2`, caster, `ActCaster` — kites + shadow bolts), **Shadowblade** (`3`, fast assassin), **Stone Warder** (`4`, heavy bruiser), and the **Hollow Sovereign** (`5`, mega-boss). Voxel bodies built in `VoxelEnemy` (`BuildTempleSentinel/Initiate/Shadowblade/StoneWarder/Sovereign`).
+- **Hollow Sovereign** (`SovereignController : BossController`): 3-phase escalating mega-boss (Lich kit → +Frost-Troll icy slam/ripple at ≤66% → +Broodmother poison nova/spores at ≤33%). Reuses all `isBoss` machinery (boss bar, `RollBoss()` loot, the Temple sanctum-gate trigger). Wired in `GameManager.SetupSovereign`. Death sets `_sovereignDefeated` and opens the gate to **the Ancient** (Ascension NPC).
+- **Prefab validation:** `EnemyPrefabNeedsRebuild` now validates `enemyType` for the boss case and requires a `SovereignController` on the Sovereign prefab (and rejects one on the plain Lich `Boss` prefab).
+- **Ascension (BUILT):** `AscensionData` catalog (7 permanent paths) + the Ancient NPC unlock + Ascendant Marks. One path per character, irreversible.
+- **Testing:** the editor playtest kit (`GameManager.GrantPlaytestKit`, `UNITY_EDITOR` only) pre-unlocks the Temple teleport node (marks troll+broodmother defeated) and hands over the Venomite set so the Temple/Sovereign are reachable straight from the network.
+
+## Guard-gauge stamina (BUILT — replaces the old "block is free" model)
+- **Stamina is now a pure GUARD gauge.** Attacks are **free** (no stamina cost). The old exploit (hold block ≈ free + facetank) is gone.
+- **Holding block** drains `PlayerController.blockHoldDrain` (8/sec) **and suppresses regen** (`PlayerStats.staminaRegenDelay`) so a raised guard truly bleeds.
+- **Each blocked hit** costs `blockHitStaminaPct` (0.35) × the raw incoming damage (× `blockStaminaMult` from shields/skills); damage still reduced to `raw / BlockDivisorEff`.
+- **Guard break:** a blocked hit with too little stamina → **full damage + empties stamina + stagger** (`guardBreakLockout` 1s, can't block/attack), fires `OnGuardBreak` → HUD "GUARD BROKEN!". `DamageResult.guardBroke` surfaces it.
+- **Attack Speed stat** (`PlayerStats.attackCooldownMult`, mirrors move speed): skill **"Swift Strikes"** (`atk_keen`, `SkillEffect.AttackSpeedPct`) and Ascension **Path of Fury** (+25% faster) / **Path of the Storm** (tempo striker: +35% attack speed, +move, +stamina). The dead `AttackStaminaPct`/`attackStaminaMult` lever was fully removed.
+
 ## ███ LONG-TERM ROADMAP (design locked — built incrementally) ███
 
 The macro shape of the game. Build it island-by-island; each island ships
@@ -65,13 +80,65 @@ The macro shape of the game. Build it island-by-island; each island ships
 
 ---
 
+## ███ ENDGAME — "ASCENDANT REALMS" (PoE-maps style — DESIGN LOCKED, not built) ███
+
+The infinite-progression layer that opens **after the Hollow Sovereign**. A portal in
+the Sovereign reward room sends the player into procedurally-themed combat realms that
+scale forever, dropping **rolled, instance-based gear** (tier 0 garbage → tier 10 god)
+across an expanded armor loadout, with an **Ascension-themed capstone boss world every
+10 levels**. This is the long-tail loop: kill → loot → power up → push a harder realm.
+
+### Locked design decisions (from the user)
+- **Armor slots:** expand the single `Armor` slot into **Helmet / Chest / Legs / Boots** (4 defensive slots). Weapon + Shield stay. (Total equip: Weapon, Shield, Helmet, Chest, Legs, Boots.)
+- **Gear rolls = PoE-lite:** an item's **tier (0–10)** drives BOTH the **number of affixes** AND their **magnitude**. Tier 0 = bare base stat, no affixes (garbage); tier 10 = max affix count + near-max rolls (god tier). Affixes are random from a slot-appropriate pool (ATK, crit, atk-speed, HP, DEF, regen, move-speed, resist, etc.).
+- **Forge → reroll/upgrade bench:** dropped gear is the *source*; the Forge is repurposed into a bench that **rerolls affixes** and **upgrades an item's tier** using materials/currency. Existing static craft recipes stay as early-game gear.
+- **Leveling = soft cap with diminishing XP:** levels continue forever, but the XP curve steepens hard past a threshold so power growth slows (keeps late numbers sane). Realm enemies scale to player level (or +1).
+
+### The loop (player-facing)
+1. Beat the Hollow Sovereign → a **Realm Portal** activates in the reward room (persistent, like the Ancient gate).
+2. Interact → **Realm Choice UI**: two options each entry —
+   - **"On-Level Realm"** — enemies at your level (safer farm).
+   - **"Ascendant Realm"** — enemies +1 level (better drops / more XP).
+3. Enter → a generated combat realm (reuse existing map/spawn pipeline with a randomized layout + theme). Clear it, loot rolled gear, return via portal/teleporter.
+4. **Every 10 player levels**, the next realm option becomes an **Ascension Boss World** themed to the player's chosen Ascension path — a capstone fight that grants an **Ascendant Mark** (feeds the existing Mark economy) and guaranteed high-tier loot.
+
+### Architecture impact (the hard parts — plan before coding)
+The biggest shift: gear is currently a **static string-ID catalog** (`GearData.cs`, keyed
+by id → fixed `GearInfo`) and the inventory stores **stack counts by id**
+(`InventoryController`). Rolled gear needs **per-instance data**. This is the central
+refactor and must come first.
+
+- **New instance model** — add a `RolledItem` (class/struct) carrying: `baseId` (for slot + base stat + visual/weaponClass), `itemLevel`, `tier` (0–10), and a `List<Affix>` (each = stat type + value). `GearData` stays as the **base/template** lookup; `RolledItem` layers rolls on top.
+- **Inventory** must hold **unique instances**, not just counts. Either a parallel list of `RolledItem` with stable instance IDs, or promote equippable entries to instances while raw resources stay stacked. Equip slots (`GameManager._equipped`) change from `Dictionary<GearSlot,string>` to reference a `RolledItem` instance.
+- **`RecomputeEquipment()`** changes from summing static `GearInfo` to summing `base GearInfo + rolled affixes` across the new slot set. New `PlayerStats` bonus fields per affix type as needed (most already exist: `bonusAtk/Def/MaxHp/MaxStamina`, crit, attack/move mult, regen, resist).
+- **`GearSlot` enum** gains `Helmet, Chest, Legs, Boots` (and the single `Armor` is migrated/retired — note Unity serialization: dropping the enum value silently invalidates old saves/scene refs; provide a migration or accept a reset).
+- **HUD / backpack UI** (`HUDController`, `InventorySlotUI`): 4 new equip slots; tooltips show tier + affix list with rarity colour (tier 0–10 colour ramp). `StatLine`/`WeaponBlurb` extend to render rolled affixes.
+
+### Suggested build phases (each ships complete, mirrors how islands were built)
+1. **Phase A — Instance-based gear core.** `RolledItem` + `Affix` model; rng roller (`itemLevel + tier → affix count + magnitude`); migrate inventory + equip + `RecomputeEquipment` to instances. *No new content yet* — existing static gear still works (treat as tier-fixed). Verify nothing regresses.
+2. **Phase B — Expanded armor slots.** Add Helmet/Chest/Legs/Boots to `GearSlot`, equip dict, UI, recompute. Base templates per slot so the system has something to roll on. (Old single-Armor items map to Chest, or are retired.)
+3. **Phase C — Drops.** Enemies drop rolled gear scaled to their level; rarity/tier weighting by enemy level (+1 realm = better odds). Loot pickup → instance into inventory.
+4. **Phase D — Forge as reroll/upgrade bench.** Repurpose Forge station: reroll affixes, upgrade tier, salvage. Currency/material sink (define what feeds it).
+5. **Phase E — Realm Portal + Realm Choice UI.** Persistent portal in Sovereign reward room; modal two-option picker (on-level vs +1); generate/enter a themed combat realm via the existing scene+spawn pipeline; return loop.
+6. **Phase F — Soft-cap XP curve.** Steepen `PlayerStats.GainXp` past a threshold; verify realm enemy level-scaling tracks player level.
+7. **Phase G — Ascension Boss World (every 10 levels).** Path-themed capstone realm; grants an Ascendant Mark + guaranteed high-tier drop; ties back into the existing Mark/Ascension economy.
+
+### Open questions to resolve when building (NOT yet decided)
+- Realm **generation**: fully procedural layouts vs a pool of hand-authored realm maps reskinned per theme? (Lean: pool + randomized spawns first, procedural later.)
+- **Affix pool** exact list + per-slot weighting + tier→(count,magnitude) curve numbers.
+- **Forge currency**: what materials/items feed reroll vs tier-upgrade; salvage outputs.
+- **Save/migration** for the `GearSlot.Armor` → 4-slot change and the static→instance inventory move.
+- Tier **colour ramp** (0–10) for tooltips/loot beams.
+
+---
+
 
 ## Architecture at a Glance
 
 | Layer | Key Classes | Notes |
 |---|---|---|
 | **World** | `MapData`, `WorldBuilder` | `MapData` is a ScriptableObject holding the ASCII map; `WorldBuilder` instantiates prefabs at runtime |
-| **Player** | `PlayerController`, `PlayerStats` | Tile-based movement (2 units/tile); stamina drives attack + block |
+| **Player** | `PlayerController`, `PlayerStats` | Tile-based movement (2 units/tile); attacks are free; stamina is a pure guard gauge |
 | **Enemy** | `EnemyController`, `EnemyStats`, `BossController` | BFS pathfinding; skeleton shield; orc axe throw; boss shadow bolt |
 | **Items** | `Inventory`, `ResourceNode` | Persistent across scenes via DontDestroyOnLoad |
 | **Core** | `GameManager`, `MerchantController` | Wires everything; handles zone transitions via `SceneManager.LoadScene` |
@@ -146,8 +213,8 @@ Edit the `rawMap` field on the `MapData` ScriptableObject assets in `Assets/Scri
 | Key | Action |
 |---|---|
 | WASD / Arrows | Move |
-| Space | Attack (30 SP) |
-| Q (hold) | Block |
+| Space | Attack (free — no stamina cost) |
+| Q (hold) | Raise guard (drains stamina; absorbs hits — see Guard-gauge) |
 | E | Interact / Gather / Use station / Enter dungeon |
 | F | Use health potion (6s cooldown) |
 | T | Use stamina tonic (6s cooldown) |
@@ -164,7 +231,7 @@ Edit the `rawMap` field on the `MapData` ScriptableObject assets in `Assets/Scri
 ## Skill Tree System (v1)
 - **Three trees** (`SkillTree` enum: Attack / Defense / Utility) defined as pure data in `Assets/Scripts/Skills/SkillData.cs` — node id, tree, branch/row, maxRank, `reqPoints` (points already spent in that tree to unlock), optional `reqNode` prerequisite, a `SkillEffect`, and per-rank magnitude. Add nodes here only.
 - **Points:** `PlayerStats.GainXp` now grants **+1 skill point per level (+1 extra every 5th level)** and NO auto stat-ups. Points/ranks live on the **DontDestroyOnLoad `PlayerStats`** (`skillPoints`, `skillRanks` dict) so they persist across scenes.
-- **Bonuses:** `PlayerStats.RecomputeSkills()` re-aggregates all ranked nodes into `skillBonus*` fields + multipliers (`attackStaminaMult`, `moveCooldownMult`, `critChance`, `goldMult`, `xpMult`, `canDodge`, …). Effective getters are now `base + equipment + skill` (`Atk`, `Def`, `MaxHpEff`, `MaxStaminaEff`, `BlockDivisorEff`). `GameManager.RecomputeEquipment()` + `RecomputeSkills()` are both re-run on every `InitScene`.
+- **Bonuses:** `PlayerStats.RecomputeSkills()` re-aggregates all ranked nodes into `skillBonus*` fields + multipliers (`attackCooldownMult`, `moveCooldownMult`, `critChance`, `goldMult`, `xpMult`, `canDodge`, …). Effective getters are now `base + equipment + skill` (`Atk`, `Def`, `MaxHpEff`, `MaxStaminaEff`, `BlockDivisorEff`). `GameManager.RecomputeEquipment()` + `RecomputeSkills()` are both re-run on every `InitScene`.
 - **Combat hooks:** `GameManager.ComputePlayerDamage()` applies Adrenaline (low-HP ATK%), Executioner (vs low-HP enemy), and Crit (double dmg). `OnEnemyDied` scales XP/gold by the multipliers. `PlayerController` reads the stamina/move multipliers and i-frames.
 - **Dodge Roll** (Utility unlock): **Left/Right Shift** dashes up to 2 tiles in the last-moved direction with ~0.4s invulnerability (`PlayerController.HandleDodge`, gated by `stats.canDodge`).
 - **UI:** Press **K** to open `SkillPanel`. Node buttons are built at runtime by `HUDController.BuildSkillButtons()` from `SkillData.All` into three column containers (`skillAttackCol/DefenseCol/UtilityCol`) — colour-coded maxed/buyable/locked. **Respec** button refunds all points for `40 × pointsSpent` gold (`PlayerStats.TryRespec`). *(Currently respec works anywhere via the panel; gating it behind a physical Shrine station is a TODO.)*
