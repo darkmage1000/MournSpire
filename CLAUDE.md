@@ -115,11 +115,16 @@ refactor and must come first.
 - **HUD / backpack UI** (`HUDController`, `InventorySlotUI`): 4 new equip slots; tooltips show tier + affix list with rarity colour (tier 0–10 colour ramp). `StatLine`/`WeaponBlurb` extend to render rolled affixes.
 
 ### Suggested build phases (each ships complete, mirrors how islands were built)
-1. **Phase A — Instance-based gear core.** `RolledItem` + `Affix` model; rng roller (`itemLevel + tier → affix count + magnitude`); migrate inventory + equip + `RecomputeEquipment` to instances. *No new content yet* — existing static gear still works (treat as tier-fixed). Verify nothing regresses.
-2. **Phase B — Expanded armor slots.** Add Helmet/Chest/Legs/Boots to `GearSlot`, equip dict, UI, recompute. Base templates per slot so the system has something to roll on. (Old single-Armor items map to Chest, or are retired.)
-3. **Phase C — Drops.** Enemies drop rolled gear scaled to their level; rarity/tier weighting by enemy level (+1 realm = better odds). Loot pickup → instance into inventory.
-4. **Phase D — Forge as reroll/upgrade bench.** Repurpose Forge station: reroll affixes, upgrade tier, salvage. Currency/material sink (define what feeds it).
-5. **Phase E — Realm Portal + Realm Choice UI.** Persistent portal in Sovereign reward room; modal two-option picker (on-level vs +1); generate/enter a themed combat realm via the existing scene+spawn pipeline; return loop.
+1. **Phase A — Instance-based gear core. ✅ BUILT** (commit `cab3993`). `RolledItem` + `Affix` model; rng roller (`itemLevel + tier → affix count + magnitude`); migrated inventory + equip + `RecomputeEquipment` to instances. Static gear wraps as `RolledItem.FromBase(id)` (tier 0). Nothing regressed.
+2. **Phase B — Expanded armor slots. ✅ BUILT** (commit `cab3993`). Added Helmet/Chest/Legs/Boots to `GearSlot`, equip dict, UI, recompute. Base templates per slot. Total equip set: Weapon, Shield, Helmet, Chest, Legs, Boots.
+3. **Phase C — Drops. ✅ BUILT.** Enemies drop rolled gear scaled to their level; tier weighting by enemy level (+1 realm = better odds). Loot pickup → instance into inventory. Implementation:
+   - `EnemyStats.MonsterLevel` — XP-reward proxy for a foe's level, with a `levelOverride` hook reserved for Phase E realm scaling.
+   - `LootSystem.RollGearDrop(monsterLevel, elite, realmBonus, rng)` — picks a slot, a base id from the matching 5-band material table (copper→venomite), and a triangular-spread `tier` (1–10) centred on effective level; commons drop ~10%, elites/bosses guarantee. `realmBonus` nudges band + tier up (Phase E +1 realm).
+   - `GameManager.OnEnemyDied` rolls 1× common / 2× mini-boss / 3× boss, calls `SpawnGearPickup` (tier-coloured drop log). `_realmTierBonus` field reserved for Phase E.
+   - `Pickup.Init(RolledItem,…)` overload — glows in rarity colour, sized by tier; `Collect()` → `inventory.AddInstance`.
+   - `HUDController` renders instances as backpack rows keyed `inst:<id>` (tier-tinted icon, tier number, rarity tooltip + stat block); `GameManager` decodes the prefix to equip (`EquipInstance`) or trash (`RemoveInstance`).
+4. **Phase D — Forge as reroll/upgrade bench. ⏳ NEXT.** Repurpose Forge station: reroll affixes, upgrade tier, salvage. Currency/material sink (define what feeds it).
+5. **Phase E — Realm Portal + Realm Choice UI.** Persistent portal in Sovereign reward room; modal two-option picker (on-level vs +1); generate/enter a themed combat realm via the existing scene+spawn pipeline; return loop. (Hooks already reserved: `GameManager._realmTierBonus`, `EnemyStats.levelOverride`.)
 6. **Phase F — Soft-cap XP curve.** Steepen `PlayerStats.GainXp` past a threshold; verify realm enemy level-scaling tracks player level.
 7. **Phase G — Ascension Boss World (every 10 levels).** Path-themed capstone realm; grants an Ascendant Mark + guaranteed high-tier drop; ties back into the existing Mark/Ascension economy.
 
